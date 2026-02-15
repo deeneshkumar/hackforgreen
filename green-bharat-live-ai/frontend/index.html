@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Green Bharat Live AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="bg-gray-900 text-white font-sans">
+
+    <!-- Header -->
+    <header class="p-6 border-b border-gray-800 flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-green-400">Green Bharat <span class="text-white">Live AI</span></h1>
+            <p class="text-gray-400">Real-Time Sustainability Monitoring & Alert System</p>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div class="bg-red-900 text-red-100 px-4 py-2 rounded-full hidden" id="live-alert-badge">
+                ⚠️ ACTIVE ALERT
+            </div>
+            <button id="audio-btn" onclick="toggleAudio()"
+                class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-full text-sm font-bold transition">
+                🔇 Audio OFF
+            </button>
+            <div class="text-green-500 font-mono" id="clock">00:00:00</div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="p-6 grid grid-cols-12 gap-6">
+
+        <!-- Live Metrics -->
+        <div class="col-span-8 space-y-6">
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-4 gap-4">
+                <div class="bg-gray-800 p-4 rounded-xl border border-gray-700">
+                    <h3 class="text-gray-400 text-sm">PM 2.5</h3>
+                    <div class="text-3xl font-bold text-yellow-400" id="val-pm25">--</div>
+                </div>
+                <div class="bg-gray-800 p-4 rounded-xl border border-gray-700">
+                    <h3 class="text-gray-400 text-sm">PM 10</h3>
+                    <div class="text-3xl font-bold text-yellow-400" id="val-pm10">--</div>
+                </div>
+                <div class="bg-gray-800 p-4 rounded-xl border border-gray-700">
+                    <h3 class="text-gray-400 text-sm">CO2 (ppm)</h3>
+                    <div class="text-3xl font-bold text-blue-400" id="val-co2">--</div>
+                </div>
+                <div class="bg-gray-800 p-4 rounded-xl border border-gray-700">
+                    <h3 class="text-gray-400 text-sm">Temp (°C)</h3>
+                    <div class="text-3xl font-bold text-orange-400" id="val-temp">--</div>
+                </div>
+            </div>
+
+            <!-- Chart -->
+            <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 h-96">
+                <canvas id="liveChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Sidebar: Alerts & AI -->
+        <div class="col-span-4 space-y-6">
+
+            <!-- Live Alerts Feed -->
+            <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 h-64 overflow-hidden flex flex-col">
+                <h3 class="text-red-400 font-bold mb-2">🚨 Live Alerts</h3>
+                <div class="flex-1 overflow-y-auto space-y-2" id="alerts-feed">
+                    <div class="text-gray-500 text-sm italic">Waiting for stream...</div>
+                </div>
+            </div>
+
+            <!-- AI Insight (RAG) -->
+            <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 h-80 flex flex-col">
+                <h3 class="text-blue-400 font-bold mb-2">🤖 AI Insight (Pathway RAG)</h3>
+                <div class="flex-1 bg-gray-900 rounded p-2 overflow-y-auto text-sm text-gray-300 mb-2" id="ai-response">
+                    AI is monitoring the stream...
+                </div>
+                <div class="flex">
+                    <input type="text" placeholder="Ask about the alert..."
+                        class="bg-gray-700 text-white px-3 py-2 rounded-l w-full focus:outline-none" id="query-input">
+                    <button class="bg-blue-600 px-4 py-2 rounded-r hover:bg-blue-500" onclick="askAI()">Ask</button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // Update Clock
+        setInterval(() => {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+        }, 1000);
+
+        // --- Chart Setup ---
+        const ctx = document.getElementById('liveChart').getContext('2d');
+        const liveChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'PM 2.5',
+                    data: [],
+                    borderColor: '#FACC15', // Yellow-400
+                    tension: 0.4
+                }, {
+                    label: 'CO2',
+                    data: [],
+                    borderColor: '#60A5FA', // Blue-400
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { display: false },
+                    y: { beginAtZero: false, grid: { color: '#374151' } }
+                }
+            }
+        });
+
+        // --- Simulated Data Polling (Since we can't easily read local files from JS without a server) ---
+        // For the DEMO, we will simulate reading the "latest" values 
+        // In a real deployment, we'd fetch /api/latest
+
+        function updateDashboard(data) {
+            document.getElementById('val-pm25').innerText = data.pm25;
+            document.getElementById('val-pm10').innerText = data.pm10;
+            document.getElementById('val-co2').innerText = data.co2;
+            document.getElementById('val-temp').innerText = data.temp;
+
+            // Chart
+            const timeInfo = new Date().toLocaleTimeString();
+            if (liveChart.data.labels.length > 20) {
+                liveChart.data.labels.shift();
+                liveChart.data.datasets[0].data.shift();
+                liveChart.data.datasets[1].data.shift();
+            }
+            liveChart.data.labels.push(timeInfo);
+            liveChart.data.datasets[0].data.push(data.pm25);
+            liveChart.data.datasets[1].data.push(data.co2);
+            liveChart.update();
+
+            // Alerts
+            if (data.pm25 > 90) {
+                const badge = document.getElementById('live-alert-badge');
+                badge.classList.remove('hidden');
+
+                const feed = document.getElementById('alerts-feed');
+                const alertItem = document.createElement('div');
+                alertItem.className = "bg-red-900/50 p-2 rounded border border-red-800 text-xs";
+                alertItem.innerHTML = `<strong>CRITICAL</strong>: PM2.5 at ${data.pm25} in ${data.location}`;
+                feed.prepend(alertItem);
+            }
+        }
+
+        // --- Real Data Polling ---
+        async function fetchData() {
+            try {
+                // Fetch Metrics
+                const res = await fetch('http://localhost:5000/latest');
+                const data = await res.json();
+
+                if (data.timestamp) {
+                    updateDashboard(data);
+                }
+
+                // Fetch Alerts
+                const alertRes = await fetch('http://localhost:5000/alerts');
+                const alertData = await alertRes.json();
+
+                if (alertData.status && alertData.status !== "NORMAL") {
+                    triggerAlert(alertData);
+                }
+
+            } catch (e) {
+                console.error("Connection error:", e);
+            }
+        }
+
+        // --- Audio & Speech Setup ---
+        let audioEnabled = false;
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const btn = document.getElementById('audio-btn');
+            if (audioEnabled) {
+                btn.classList.remove('bg-gray-700');
+                btn.classList.add('bg-green-600');
+                btn.innerText = "🔊 Audio ON";
+                // Test speech
+                speak("Audio alerts enabled.");
+            } else {
+                btn.classList.add('bg-gray-700');
+                btn.classList.remove('bg-green-600');
+                btn.innerText = "🔇 Audio OFF";
+            }
+        }
+
+        function speak(text) {
+            if (!audioEnabled) return;
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.1;
+            utterance.pitch = 1.0;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function triggerAlert(data) {
+            const badge = document.getElementById('live-alert-badge');
+            badge.classList.remove('hidden');
+            badge.innerText = `⚠️ ${data.status}: ${data.type || 'Pollution Spike'}`;
+
+            // Add to feed if not already top
+            const feed = document.getElementById('alerts-feed');
+            const lastItem = feed.firstElementChild;
+
+            // Check if it's a NEW alert (different timestamp or type)
+            if (!lastItem || !lastItem.innerHTML.includes(data.timestamp)) {
+                const alertItem = document.createElement('div');
+                alertItem.className = "bg-red-900/50 p-2 rounded border border-red-800 text-xs text-white";
+                alertItem.innerHTML = `<strong>${data.status}</strong>: ${data.message} <br><span class="opacity-50 text-[10px]">${data.timestamp}</span>`;
+                feed.prepend(alertItem);
+
+                // Speak the alert!
+                speak(`Alert! ${data.message}. Status is ${data.status}.`);
+            }
+        }
+
+        setInterval(fetchData, 1000);
+
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,8 @@
+pathway
+pandas
+openai
+python-dotenv
+streamlit
+watchdog
+flask
+flask-cors

@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # 1. Data Ingestion Service
+  ingest:
+    build: .
+    command: python src/ingest.py
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+  # 2. Pathway Pipeline Service
+  pipeline:
+    build: .
+    command: python src/pipeline.py
+    volumes:
+      - ./data:/app/data
+      - ./docs:/app/docs
+    depends_on:
+      - ingest
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    restart: unless-stopped
+
+  # 3. Backend API Server
+  server:
+    build: .
+    command: python src/server.py
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "5000:5000"
+    depends_on:
+      - pipeline
+    restart: unless-stopped
+
+  # 4. Frontend (Simple HTML serving)
+  # We can just run a python http server for the frontend or user can open file locally.
+  # But for a containerized demo, let's serve it.
+  frontend:
+    image: python:3.11-slim
+    working_dir: /app/frontend
+    volumes:
+      - ./frontend:/app/frontend
+    command: python -m http.server 8000
+    ports:
+      - "8000:8000"
